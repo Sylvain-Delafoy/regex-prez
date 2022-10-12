@@ -4,37 +4,158 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+    <title>reveal.js</title>
 
-		<link rel="stylesheet" href="dist/reset.css">
-		<link rel="stylesheet" href="dist/reveal.css">
-		<link rel="stylesheet" href="dist/theme/black.css">
+    <link rel="stylesheet" href="dist/reset.css" />
+    <link rel="stylesheet" href="dist/reveal.css" />
+    <link rel="stylesheet" href="dist/theme/black.css" />
 
-		<!-- Theme used for syntax highlighted code -->
-		<link rel="stylesheet" href="plugin/highlight/monokai.css">
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href="plugin/highlight/monokai.css" />
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          Slide 1
+          <popup-info
+            data-text="Je suis une regex pour tester"
+            regex="(.*?)e(?<plop>.*)"
+          ></popup-info>
+        </section>
+        <section>
+          Rappels
+          <aside class="notes">
+            <p>Some notes</p>
+          </aside>
+          <p>Il faut compiler</p>
+          <aside class="notes">
+            <p>and some more notes</p>
+          </aside>
+        </section>
+      </div>
+    </div>
 
-		<script src="dist/reveal.js"></script>
-		<script src="plugin/notes/notes.js"></script>
-		<script src="plugin/markdown/markdown.js"></script>
-		<script src="plugin/highlight/highlight.js"></script>
-		<script>
-			// More info about initialization & config:
-			// - https://revealjs.com/initialization/
-			// - https://revealjs.com/config/
-			Reveal.initialize({
-				hash: true,
+    <script src="dist/reveal.js"></script>
+    <script src="plugin/notes/notes.js"></script>
+    <script src="plugin/markdown/markdown.js"></script>
+    <script src="plugin/highlight/highlight.js"></script>
+    <script>
+      // More info about initialization & config:
+      // - https://revealjs.com/initialization/
+      // - https://revealjs.com/config/
+      Reveal.initialize({
+        hash: true,
 
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
-			});
-		</script>
-	</body>
+        // Learn about plugins: https://revealjs.com/plugins/
+        plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
+      });
+    </script>
+    <script>
+      class PopUpInfo extends HTMLElement {
+        constructor() {
+          super();
+
+          const shadow = this.attachShadow({ mode: "open" });
+
+          this.regexArea = document.createElement("input");
+          this.regexArea.setAttribute("class", "regex");
+
+          this.textArea = document.createElement("textArea");
+          this.textArea.setAttribute("class", "text");
+
+          this.results = document.createElement("table");
+          this.results.setAttribute("class", "results");
+          this.results.innerHTML = `
+            <tbody>
+            </tbody>
+          `;
+
+          const style = document.createElement("style");
+          style.textContent = `
+          :host{
+            display:block;
+            border: 1px solid red;
+            max-height: 70vh;
+            overflow: auto;
+          }
+					.regex, .text{
+						width:90%;
+						margin:0 5%;
+					}
+        `;
+          const preventKeyPropagation = () => {
+            const callback = (ev) => ev.stopPropagation();
+            this.addEventListener("keypress", callback);
+            this.addEventListener("keydown", callback);
+            this.addEventListener("keyup", callback);
+          };
+          preventKeyPropagation();
+
+          const updateCallBack = (ev) => {
+            const reg = this.regexArea.value;
+            const text = this.textArea.value;
+            this.updateTable(reg, text);
+          };
+          this.regexArea.addEventListener("input", updateCallBack);
+          this.textArea.addEventListener("input", updateCallBack);
+          shadow.replaceChildren(
+            style,
+            this.regexArea,
+            this.textArea,
+            this.results
+          );
+        }
+        updateTable(reg, text) {
+          const row = (key, value) => {
+            return element("tr", [element("th", key), element("td", value)]);
+          };
+          const dtfy = (x) => {
+            const dl = document.createElement("dl");
+            for (const [key, value] of Object.entries(x || [])) {
+              dl.appendChild(element("dt", key));
+              dl.appendChild(element("dd", value));
+            }
+            return dl;
+          };
+          const ulfy = (texts) => {
+            const lis = (texts || []).map((match) => element("li", match));
+            return element("ul", lis);
+          };
+          const element = (name, text) => {
+            const elt = document.createElement(name);
+            if (text instanceof String) {
+              elt.textContent = text;
+            } else if (Array.isArray(text)) {
+              elt.replaceChildren(...text);
+            } else {
+              elt.replaceChildren(text);
+            }
+            return elt;
+          };
+
+          const regex = new RegExp(reg);
+          const exec = regex.exec(text);
+          this.results
+            .querySelector("tbody")
+            .replaceChildren(
+              row("Regex", regex.source),
+              row("Flags", regex.flags),
+              row("match", regex.test(text)),
+              row("groups", ulfy(exec || "")),
+              row("named groups", dtfy(exec?.groups))
+            );
+        }
+
+        connectedCallback() {
+          this.regexArea.value = this.getAttribute("regex");
+          this.textArea.value = this.getAttribute("data-text");
+          this.regexArea.dispatchEvent(new Event("input"));
+        }
+      }
+
+      // Define the new element
+      customElements.define("popup-info", PopUpInfo);
+    </script>
+  </body>
 </html>
